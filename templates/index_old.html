@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>//GAME_NAME//<!--Spin Reality--> — VR настольный теннис</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+            background: #0b1623; /* глубокий тёмно‑синий */
+            color: #eef2f8;
+            line-height: 1.7;
+            overflow-x: hidden;
+        }
+
+        /* ----- АНИМИРОВАННЫЙ ФОН: МЯЧИ ДЛЯ ПИНГ‑ПОНГА ----- */
+        .balls-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Картинки в галерее */
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 18px;
+        }
+
+        /* Центрирование видео */
+        video {
+            display: block;
+            margin: 0 auto;
+        }
+
+        .lightbox {
+            display: none; /* скрыто по умолчанию */
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lightbox.show {
+            display: flex;
+        }
+
+        .lightbox-content {
+            max-width: 90%;
+            max-height: 85vh;
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+            object-fit: contain;
+            cursor: zoom-out;
+        }
+
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            right: 40px;
+            color: #fff;
+            font-size: 3rem;
+            font-weight: 300;
+            cursor: pointer;
+            transition: transform 0.2s;
+            z-index: 10000;
+        }
+
+        .lightbox-close:hover {
+            transform: scale(1.2);
+            color: #ff8c42;
+        }
+
+        .ball {
+            position: absolute;
+            background: radial-gradient(circle at 35% 30%, #ffffff 5%, #cbd5e1 80%);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.55),
+                        0 0 8px rgba(255, 255, 255, 0.3);
+            animation: floatBall var(--duration) ease-in-out infinite;
+            animation-delay: var(--delay);
+            opacity: 0.7;
+        }
+
+        /* Шов на мяче (добавляет сходство с настоящим шариком) */
+        .ball::after {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 50%;
+            transform: rotate(25deg);
+            pointer-events: none;
+        }
+
+        @keyframes floatBall {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.4;
+            }
+            25% {
+                transform: translate(20px, -50px) scale(1.15);
+                opacity: 0.8;
+            }
+            50% {
+                transform: translate(-25px, -90px) scale(0.9);
+                opacity: 0.6;
+            }
+            75% {
+                transform: translate(15px, -30px) scale(1.08);
+                opacity: 0.85;
+            }
+            100% {
+                transform: translate(0, 0) scale(1);
+                opacity: 0.4;
+            }
+        }
+
+        /* ----- ОСНОВНОЙ КОНТЕЙНЕР ----- */
+        .main-container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* ----- HERO ----- */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 80px 0;
+        }
+
+        .hero-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.18);
+            border: 1px solid rgba(96, 165, 250, 0.7);
+            color: #bfdbfe;
+            padding: 8px 24px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 28px;
+            backdrop-filter: blur(10px);
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 6rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #3b82f6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 20px;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+
+        .hero-subtitle {
+            font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+            color: #cbd5e1;
+            max-width: 700px;
+            margin-bottom: 40px;
+            font-weight: 400;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 14px 36px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 0.03em;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1.2);
+            border: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 8px 28px rgba(37, 99, 235, 0.5);
+        }
+        .btn-primary:hover {
+            background: #1d4ed8;
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(37, 99, 235, 0.75);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #bfdbfe;
+            border: 2px solid rgba(96, 165, 250, 0.6);
+            backdrop-filter: blur(6px);
+        }
+        .btn-outline:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: #60a5fa;
+            color: #ffffff;
+            transform: translateY(-4px);
+        }
+
+        /* ----- СЕКЦИИ ----- */
+        section {
+            padding: 90px 0;
+            position: relative;
+        }
+
+        .section-label {
+            display: inline-block;
+            color: #3b82f6;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 18px;
+            color: #f8fafc;
+            letter-spacing: -0.01em;
+        }
+
+        .section-desc {
+            font-size: 1.1rem;
+            color: #cbd5e1;
+            max-width: 650px;
+            margin-bottom: 50px;
+        }
+
+        /* ----- КАРТОЧКИ ОСОБЕННОСТЕЙ ----- */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 28px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(59, 130, 246, 0.25);
+            border-radius: 20px;
+            padding: 36px 28px;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(12px);
+            position: relative;
+            overflow: hidden;
+            color: #0f172a; /* тёмный текст для светлого фона */
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 60%);
+            transition: opacity 0.4s;
+            opacity: 0;
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+        .feature-card:hover {
+            border-color: rgba(37, 99, 235, 0.7);
+            transform: translateY(-8px);
+            box-shadow: 0 24px 60px rgba(37, 99, 235, 0.3);
+        }
+
+        .feature-icon {
+            font-size: 2.8rem;
+            margin-bottom: 18px;
+        }
+        .feature-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #1e293b;
+            font-weight: 700;
+        }
+        .feature-card p {
+            color: #475569;
+            font-size: 0.95rem;
+        }
+
+        /* ----- ГАЛЕРЕЯ СКРИНШОТОВ ----- */
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 22px;
+        }
+
+        .gallery-item {
+            background: rgba(255, 255, 255, 0.08);
+            border: 2px dashed rgba(148, 163, 184, 0.5);
+            border-radius: 18px;
+            aspect-ratio: 16 / 9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(8px);
+            color: #e2e8f0;
+            font-size: 0.95rem;
+            text-align: center;
+            gap: 10px;
+        }
+
+        .gallery-item:hover {
+            border-color: #3b82f6;
+            border-style: solid;
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+            transform: scale(1.03);
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .gallery-icon {
+            font-size: 3.5rem;
+            opacity: 0.8;
+        }
+        .gallery-item span {
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: #f1f5f9;
+        }
+
+        /* ----- ВИДЕО‑БЛОК ----- */
+        .video-placeholder {
+            background: rgba(15, 23, 42, 0.7);
+            border: 2px dashed rgba(148, 163, 184, 0.55);
+            border-radius: 22px;
+            aspect-ratio: 16 / 9;
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.4s ease;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        .video-placeholder:hover {
+            border-color: #3b82f6;
+            border-style: solid;
+            box-shadow: 0 0 60px rgba(59, 130, 246, 0.5);
+            transform: scale(1.02);
+        }
+        .video-play-icon {
+            font-size: 5rem;
+            opacity: 0.9;
+            animation: pulse 2s ease-in-out infinite;
+            color: #3b82f6;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+        .video-placeholder p {
+            margin-top: 12px;
+            color: #bfdbfe;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        /* ----- СИСТЕМНЫЕ ТРЕБОВАНИЯ ----- */
+        .requirements-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        @media (max-width: 600px) {
+            .requirements-box { grid-template-columns: 1fr; }
+        }
+        .req-col {
+            background: rgba(255, 255, 255, 0.93);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 18px;
+            padding: 28px 24px;
+            backdrop-filter: blur(10px);
+            color: #0f172a;
+        }
+        .req-col h4 {
+            color: #1d4ed8;
+            margin-bottom: 14px;
+            font-size: 1.1rem;
+            letter-spacing: 0.04em;
+        }
+        .req-col ul {
+            list-style: none;
+            font-size: 0.9rem;
+            color: #1e293b;
+        }
+        .req-col ul li {
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        .req-col ul li:last-child {
+            border-bottom: none;
+        }
+
+        /* ----- FOOTER / ПОДВАЛ ----- */
+        .footer-cta {
+            text-align: center;
+            padding: 70px 0 50px;
+        }
+        .footer-cta h2 {
+            font-size: 2.4rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            color: #f8fafc;
+        }
+        .footer-cta p {
+            color: #cbd5e1;
+            margin-bottom: 32px;
+            font-size: 1.05rem;
+        }
+        .footer-bottom {
+            text-align: center;
+            padding: 24px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 768px) {
+            section { padding: 50px 0; }
+            .hero { min-height: auto; padding: 100px 0 60px; }
+            .gallery-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- АНИМИРОВАННЫЙ ФОН С МЯЧАМИ -->
+    <div class="balls-container" id="ballsContainer"></div>
+
+    <!-- ОСНОВНОЙ КОНТЕНТ -->
+    <div class="main-container">
+
+        <!-- ===== HERO ===== -->
+        <header class="hero">
+            <div class="hero-badge">🥽 Доступно в VR</div>
+            <h1>//GAME_NAME//<!--Spin Reality--></h1>
+            <p class="hero-subtitle">
+                Настоящий настольный теннис в виртуальной реальности. Реалистичная физика мяча,
+                интуитивное управление и живые эмоции — теперь не выходя из дома.
+            </p>
+            <div class="hero-buttons">
+                <a href="#gallery" class="btn btn-primary">🏓 Смотреть скриншоты</a>
+                <a href="#video" class="btn btn-outline">▶ Смотреть трейлер</a>
+            </div>
+        </header>
+
+        <!-- ===== ОБ ИГРЕ ===== -->
+        <section id="about">
+            <p class="section-label">🏓 Что такое //GAME_NAME//<!--Spin Reality-->?</p>
+            <h2 class="section-title">Ваш личный корт в VR</h2>
+            <p class="section-desc">
+                <strong>//GAME_NAME//<!--Spin Reality--></strong> — это высокоточный симулятор настольного тенниса,
+                разработанный специально для шлемов виртуальной реальности. Забудьте про контроллеры —
+                двигайтесь как в реальной игре, чувствуйте отдачу и кручение мяча. Соревнуйтесь с
+                друзьями или тренируйтесь с продвинутым ИИ, который подстраивается под ваш стиль.
+            </p>
+        </section>
+
+        <!-- ===== ОСОБЕННОСТИ ===== -->
+        <section id="features">
+            <p class="section-label">⚡ Ключевые особенности</p>
+            <h2 class="section-title">Почему это лучший VR-теннис</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Физика мирового уровня</h3>
+                    <p>Поведение мяча просчитано до мельчайших деталей: вращение, подрезки, топ‑спины, скорость и угол отскока зависят от вашего движения.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🕹️</div>
+                    <h3>Точное отслеживание</h3>
+                    <p>Новейшие алгоритмы захвата движений контроллеров и тела. Каждый взмах ракеткой передаётся с минимальной задержкой.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🏸</div>
+                    <h3>Кастомизация ракеток</h3>
+                    <p>Выбирайте основание, накладки, вес и баланс. Создайте ракетку под свой стиль: атакующий, защитный или универсальный.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🌐</div>
+                    <h3>Разнообразие арен</h3>
+                    <p>Играйте в футуристическом зале, на крыше небоскрёба или на пляже. Каждая арена влияет на освещение и звуковое окружение.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">👥</div>
+                    <h3>Мультиплеер и рейтинги</h3>
+                    <p>Сражайтесь с игроками со всего мира в режиме реального времени. Система лиг и ежемесячные турниры с призами.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🤖</div>
+                    <h3>ИИ‑тренер</h3>
+                    <p>Персональный виртуальный соперник анализирует ваши слабые стороны и предлагает упражнения для улучшения навыков.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== ГАЛЕРЕЯ СКРИНШОТОВ ===== -->
+        <section id="gallery">
+            <p class="section-label">📸 Скриншоты</p>
+            <h2 class="section-title">Взгляните на игру</h2>
+            <p class="section-desc">
+                <!--Ниже — места для ваших скриншотов. Замените плейсхолдеры на реальные изображения из VR‑тенниса.-->
+            </p>
+            <div class="gallery-grid">
+                <!--<div class="gallery-item"><div class="gallery-icon">🖼️</div><span>Скриншот 1</span><small>Вид от первого лица</small></div>-->
+                <!--<div class="gallery-item"><div class="gallery-icon">🖼️</div><span>Скриншот 2</span><small>Тренировочный зал</small></div>-->
+                <!--<div class="gallery-item"><div class="gallery-icon">🖼️</div><span>Скриншот 3</span><small>Матч на арене «Крыша»</small></div>-->
+                <!--<div class="gallery-item"><div class="gallery-icon">🖼️</div><span>Скриншот 4</span><small>Настройка ракетки</small></div>-->
+                <!--<div class="gallery-item"><div class="gallery-icon">🖼️</div><span>Скриншот 5</span><small>Мультиплеерный рейтинг</small></div>-->
+                <!--<div class="gallery-item"><div class="gallery-icon">🖼️</div><span>Скриншот 6</span><small>Турнирная таблица</small></div>-->
+                <div class="gallery-item">
+                    <img src="/static/images/placeholder.jpg" alt="Вид от первого лица">
+                </div>
+                <div class="gallery-item">
+                    <img src="/static/images/placeholder.jpg" alt="Тренировочный зал">
+                </div>
+                <div class="gallery-item">
+                    <img src="/static/images/placeholder.jpg" alt="Вид от первого лица">
+                </div>
+                <div class="gallery-item">
+                    <img src="/static/images/placeholder.jpg" alt="Тренировочный зал">
+                </div>
+                <div class="gallery-item">
+                    <img src="/static/images/placeholder.jpg" alt="Вид от первого лица">
+                </div>
+                <div class="gallery-item">
+                    <img src="/static/images/placeholder.jpg" alt="Тренировочный зал">
+                </div>
+            </div>
+            <!--<p style="text-align:center; margin-top:18px; color:#94a3b8; font-size:0.85rem;">
+                💡 <em>Чтобы заменить плейсхолдер — добавьте тег &lt;img&gt; внутрь блока .gallery-item</em>
+            </p>-->
+        </section>
+
+        <!-- ===== ВИДЕО‑ТРЕЙЛЕР ===== -->
+        <section id="video">
+            <p class="section-label">🎬 Трейлер</p>
+            <h2 class="section-title">Посмотрите геймплей</h2>
+            <!--<p class="section-desc">
+                Место для вставки видеоролика с YouTube, Vimeo или локального файла.
+            </p>-->
+            <!--<div class="video-placeholder" title="Нажмите для воспроизведения трейлера">
+                <div class="video-play-icon">▶</div>
+                <p>Геймплейный трейлер • 1:52</p>
+                <small style="color:#94a3b8;">Замените этот блок на &lt;iframe&gt; или &lt;video&gt;</small>
+            </div>-->
+            <video 
+                controls 
+                poster="/static/images/preview.jpg"
+                style="width: 100%; max-width: 900px; border-radius: 22px; aspect-ratio: 16/9; object-fit: cover;">
+                <source src="/static/videos/placeholder.mp4" type="video/mp4">
+                Ваш браузер не поддерживает видео.
+            </video>
+        </section>
+
+        <!-- ===== СИСТЕМНЫЕ ТРЕБОВАНИЯ ===== -->
+        <section id="requirements">
+            <p class="section-label">💻 Системные требования</p>
+            <h2 class="section-title">Готов ли ваш VR‑шлем?</h2>
+            <div class="requirements-box">
+                <div class="req-col">
+                    <h4>🔹 Минимальные (VR)</h4>
+                    <ul>
+                        <li>Шлем: Meta Quest 2 / Oculus Rift S</li>
+                        <li>Процессор: Intel Core i5-4590 / AMD Ryzen 5 1500X</li>
+                        <li>ОЗУ: 8 GB RAM</li>
+                        <li>Видеокарта: NVIDIA GTX 1060 / AMD RX 580</li>
+                        <li>Порты: 1x USB 3.0, HDMI 1.4</li>
+                        <li>Место на диске: 15 GB SSD</li>
+                    </ul>
+                </div>
+                <div class="req-col">
+                    <h4>🔸 Рекомендуемые (VR)</h4>
+                    <ul>
+                        <li>Шлем: Valve Index / Meta Quest 3</li>
+                        <li>Процессор: Intel Core i7-10700K / AMD Ryzen 7 5800X</li>
+                        <li>ОЗУ: 16 GB RAM</li>
+                        <li>Видеокарта: NVIDIA RTX 3060 Ti / AMD RX 6700 XT</li>
+                        <li>Порты: 1x USB 3.2, DisplayPort 1.4</li>
+                        <li>Место на диске: 15 GB NVMe SSD</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== ПРИЗЫВ К ДЕЙСТВИЮ ===== -->
+        <div class="footer-cta">
+            <h2>Готовы выйти на корт?</h2>
+            <p>Добавьте //GAME_NAME// в список желаемого и получите эксклюзивный скин ракетки при релизе.</p>
+            <a href="#" class="btn btn-primary" style="font-size:1.1rem; padding:16px 48px;">
+                🏓 Добавить в Wishlist
+            </a>
+        </div>
+
+        <div class="footer-bottom">
+            © copyright text<!--2026 Spin Reality Studios. Все права защищены. Это вымышленная игра для демонстрации вёрстки.-->
+        </div>
+    </div>
+
+    <!-- ===== СКРИПТ ДЛЯ МЯЧЕЙ ===== -->
+    <script>
+        (function() {
+            const container = document.getElementById('ballsContainer');
+            const ballCount = 40;
+            for (let i = 0; i < ballCount; i++) {
+                const ball = document.createElement('div');
+                ball.classList.add('ball');
+                const size = Math.random() * 22 + 10; // от 10px до 32px
+                ball.style.width = size + 'px';
+                ball.style.height = size + 'px';
+                ball.style.left = Math.random() * 100 + '%';
+                ball.style.top = Math.random() * 100 + '%';
+                ball.style.setProperty('--duration', (Math.random() * 7 + 5) + 's');
+                ball.style.setProperty('--delay', (Math.random() * 10) + 's');
+                container.appendChild(ball);
+            }
+        })();
+    </script>
+    <div id="lightbox" class="lightbox">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img" src="" alt="Просмотр изображения">
+    </div>
+    <script>
+        // Лайтбокс: открытие и закрытие
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const closeBtn = document.querySelector('.lightbox-close');
+
+        // Вешаем обработчик на все изображения внутри .gallery-item
+        document.querySelectorAll('.gallery-item img').forEach(img => {
+            img.style.cursor = 'zoom-in'; // подсказка курсором
+            img.addEventListener('click', () => {
+                lightboxImg.src = img.src;
+                lightboxImg.alt = img.alt;
+                lightbox.classList.add('show');
+            });
+        });
+
+        // Закрытие по кнопке "крестик"
+        closeBtn.addEventListener('click', () => {
+            lightbox.classList.remove('show');
+        });
+
+        // Закрытие по клику на тёмный фон (не на саму картинку)
+        lightbox.addEventListener('click', (e) => {
+            if (e.target === lightbox) {
+                lightbox.classList.remove('show');
+            }
+        });
+
+        // Закрытие по клавише Escape
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && lightbox.classList.contains('show')) {
+                lightbox.classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
